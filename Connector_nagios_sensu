@@ -1,0 +1,85 @@
+#!/bin/env python
+import json, requests
+from requests.auth import HTTPBasicAuth
+import mysql.connector
+# Variables
+MYSQL_HOST="192.168.4.4"
+MYSQL_USER="dashboard"
+MYSQL_PASSWORD="Azerty123!"
+MYSQL_DB="nagios_dashboard"
+
+
+
+
+#### Nagios informations
+NAGIOS_URL="nagios.oxxodata.net"
+NAGIOS_PASSWORD="nYlw5ok2iIrhTM4q"
+NAGIOS_USER="nagiosadmin"
+URL_HOSTS="cgi-bin/statusjson.cgi?query=hostlist&details=true"
+URL_SERVICES="cgi-bin/statusjson.cgi?query=servicelist&details=true"
+
+mydb = mysql.connector.connect(
+  host=MYSQL_HOST,
+  user=MYSQL_USER,
+  password=MYSQL_PASSWORD,
+  database=MYSQL_DB
+)
+
+mycursor = mydb.cursor()
+
+sql="delete from host_status"
+mycursor.execute(sql)
+sql="delete from service_status"
+mycursor.execute(sql)
+mydb.commit()
+
+
+
+response=requests.get('http://'+NAGIOS_URL+'/nagios/'+URL_HOSTS, auth=HTTPBasicAuth(NAGIOS_USER, NAGIOS_PASSWORD))
+json_result = json.loads(response.text)
+
+for host in json_result["data"]["hostlist"]:
+        sql = """INSERT INTO host_status(host,status,output,url)
+                                         VALUES(%s,%s,%s,%s)"""
+        vals=(json_result["data"]["hostlist"][host]["name"],int(json_result["data"]["hostlist"][host]["status"]),json_result["data"]["hostlist"][host]["plugin_output"],"https://"+NAGIOS_URL+"/nagios/cgi-bin/extinfo.cgi?type=1&host="+json_result["data"]["hostlist"][host]["name"])
+        mycursor.execute(sql, vals)
+        mydb.commit()
+response=requests.get('http://'+NAGIOS_URL+'/nagios/'+URL_SERVICES, auth=HTTPBasicAuth(NAGIOS_USER, NAGIOS_PASSWORD))
+json_result = json.loads(response.text)
+
+for host in json_result["data"]["servicelist"]:
+        for service in json_result["data"]["servicelist"][host]:
+                sql = """INSERT INTO service_status(host,service,status,output,url)
+                                         VALUES(%s,%s,%s,%s,%s)"""
+                vals=(json_result["data"]["servicelist"][host][service]["host_name"],json_result["data"]["servicelist"][host][service]["description"],json_result["data"]["servicelist"][host][service]["status"],json_result["data"]["servicelist"][host][service]["plugin_output"],"https://"+NAGIOS_URL+"/nagios/cgi-bin/extinfo.cgi?type=2&host="+json_result["data"]["servicelist"][host][service]["host_name"]+"&service="+json_result["data"]["servicelist"][host][service]["description"])
+                mycursor.execute(sql, vals)
+                mydb.commit()
+
+
+
+
+##### Sensu 
+##### Sensu 
+SENSU_URL="192.168.4.25:8080"
+SENSU_PASSWORD="Datagix2018!"
+SENSU_USER="admin"
+SENSU_TOKEN=""
+URL_EVENTS="/api/core/v2/namespaces/default/events"
+FILTER_EVENTS={"fieldSelector":"event.check.status != '0' && event.is_silenced  == false "}
+response=requests.get('http://'+SENSU_URL+'/auth', auth=(SENSU_USER, SENSU_PASSWORD))
+json_result = json.loads(response.text)
+SENSU_TOKEN="Bearer " +json_result["access_token"]
+
+headers = {'Authorization': SENSU_TOKEN}
+
+response=requests.get('http://'+SENSU_URL+URL_EVENTS, headers=headers,params=FILTER_EVENTS)
+json_result = json.loads(response.text)
+for i in json_result :
+                if i["check"]["status"] == 2:
+                    i["check"]["status"]=16
+
+                sql = """INSERT INTO service_status(host,service,status,output,url)
+                                         VALUES(%s,%s,%s,%s,%s)"""
+                vals=(i["entity"]["metadata"]["name"],i["check"]["metadata"]["name"],i["check"]["status"],i["check"]["output"],"https://monitoring.oxxodata.com/c/~/n/default/events/"+i["entity"]["metadata"]["name"]+"/"+i["check"]["metadata"]["name"])
+                mycursor.execute(sql, vals)
+                mydb.commit()
