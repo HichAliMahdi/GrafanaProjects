@@ -3,18 +3,18 @@ import json, requests
 from requests.auth import HTTPBasicAuth
 import mysql.connector
 # Variables
-MYSQL_HOST="192.168.4.4"
-MYSQL_USER="dashboard"
-MYSQL_PASSWORD="Azerty123!"
-MYSQL_DB="nagios_dashboard"
+MYSQL_HOST="XXXXX"
+MYSQL_USER="XXXXX"
+MYSQL_PASSWORD="XXXXX"
+MYSQL_DB="XXXXX"
 
 
 
 
 #### Nagios informations
-NAGIOS_URL="nagios.oxxodata.net"
-NAGIOS_PASSWORD="nYlw5ok2iIrhTM4q"
-NAGIOS_USER="nagiosadmin"
+NAGIOS_URL="XXXXX"
+NAGIOS_PASSWORD="XXXXX"
+NAGIOS_USER="XXXXX"
 URL_HOSTS="cgi-bin/statusjson.cgi?query=hostlist&details=true"
 URL_SERVICES="cgi-bin/statusjson.cgi?query=servicelist&details=true"
 
@@ -56,13 +56,10 @@ for host in json_result["data"]["servicelist"]:
                 mydb.commit()
 
 
-
-
 ##### Sensu 
-##### Sensu 
-SENSU_URL="192.168.4.25:8080"
-SENSU_PASSWORD="Datagix2018!"
-SENSU_USER="admin"
+SENSU_URL="XXXXX"
+SENSU_PASSWORD="XXXXX"
+SENSU_USER="XXXXX"
 SENSU_TOKEN=""
 URL_EVENTS="/api/core/v2/namespaces/default/events"
 FILTER_EVENTS={"fieldSelector":"event.check.status != '0' && event.is_silenced  == false "}
